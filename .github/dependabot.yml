@@ -1,0 +1,46 @@
+version: 2
+
+# 依赖自动更新
+# 背景：2026-11-23 的发布失败源于 upload-pages-artifact v3 与 deploy-pages v4 代际脱节
+# （一方升级、另一方没跟上）。因此这里把 GitHub Pages 相关的三个组件编成一个 group，
+# 保证它们永远在同一批 PR 里一起升级、一起评审。
+updates:
+  # ---------------------------------------------------------------- GitHub Actions
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "03:00"
+      timezone: "Asia/Shanghai"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "github-actions"
+    commit-message:
+      prefix: "chore(actions)"
+    groups:
+      # Pages 三件套必须同代际，单独成组，避免再次出现 v3/v4 错配
+      github-pages:
+        patterns:
+          - "actions/configure-pages"
+          - "actions/upload-pages-artifact"
+          - "actions/deploy-pages"
+
+  # ---------------------------------------------------------------- pip
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "03:10"
+      timezone: "Asia/Shanghai"
+    open-pull-requests-limit: 3
+    labels:
+      - "dependencies"
+      - "python"
+    commit-message:
+      prefix: "chore(deps)"
+    # requirements.txt 用的是区间钉法（requests>=2.32,<3），
+    # increase 会把下限抬到新版（如 >=2.34），使锁定意图与实际安装版本保持一致。
+    versioning-strategy: "increase"
