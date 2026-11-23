@@ -31,6 +31,19 @@ for _stream in (sys.stdout, sys.stderr):
     except Exception:
         pass
 
+
+def _env_float(name, default):
+    """读取浮点型环境变量; 值非法时直接失败, 避免安全阈值被静默忽略。"""
+    raw = (os.environ.get(name) or "").strip()
+    if not raw:
+        return default
+    try:
+        return float(raw)
+    except ValueError:
+        print(f"[FATAL] 环境变量 {name}={raw!r} 不是合法数字", flush=True)
+        sys.exit(1)
+
+
 # ---------------------------------------------------------------------------
 # 配置
 # ---------------------------------------------------------------------------
@@ -45,6 +58,9 @@ WORKER_CHECK_URL = os.environ.get("CHECK_WORKER", "https://你的域名/check?ss
 CONCURRENCY = max(1, int(os.environ.get("CHECK_CONCURRENCY", "32")))
 CHECK_TIMEOUT = float(os.environ.get("CHECK_TIMEOUT", "90"))
 MAX_CHECK_NODES = int(os.environ.get("MAX_CHECK_NODES", "0"))
+# 成功率下限 (0~1): 成功数/检测总数低于该值则拒绝发布, 保留上一版订阅。
+# 默认 0 = 不启用 (与 README 一致)。建议 CI 设 0.2, 只拦灾难性全灭/近全灭。
+MIN_SUCCESS_RATIO = _env_float("MIN_SUCCESS_RATIO", 0.0)
 HTTP_TIMEOUT = int(os.environ.get("HTTP_TIMEOUT", "60"))
 PUBLIC_DIR = os.environ.get("PUBLIC_DIR", os.path.join(REPO_DIR, "public"))
 TEMPLATE_HTML = os.path.join(REPO_DIR, "web", "index.html")
@@ -508,8 +524,36 @@ def main():
     log("CLOUDFLARE WORKER", f"检测失败: {len(failed)}" + (f" (其中 Worker 异常 {len(worker_errors)})" if worker_errors else ""))
     log("CLOUDFLARE WORKER", f"耗时: {elapsed:.1f}s")
 
-    if uniq and not success and len(worker_errors) == len(uniq):
+    # ------------------------------------------------------------------
+    # 发布闸门: 宁可本次失败、保留上一版好数据, 也绝不发布空/劣质订阅。
+    # 三个闸门都在 write_outputs() 之前, die() 以非零码退出, 让 workflow 这一步明确失败。
+    # ------------------------------------------------------------------
+    checked = len(uniq)
+    success_ratio = (len(success) / checked) if checked else 0.0
+
+    # 闸门 1 (专用报错): 检测服务本身不可用, 与"节点全挂"区分开, 便于快速定位
+    if checked and not success and len(worker_errors) == checked:
         die("Worker 全部请求异常, 检测服务不可用 — 本次运行判定失败 (不生成空结果)")
+
+    # 闸门 2 (硬闸): 只要检测了节点却一个都没成功, 无论失败原因是什么, 一律不发布
+    if checked and not success:
+        die(
+            f"检测 {checked} 个节点全部失败 (其中 Worker 异常 {len(worker_errors)} 个) "
+            "— 拒绝发布空结果, 保留上一版订阅"
+        )
+
+    # 闸门 3 (成功率下限): 全灭之外的"近全灭"也拦掉, 阈值由 MIN_SUCCESS_RATIO 控制
+    if checked and MIN_SUCCESS_RATIO > 0 and success_ratio < MIN_SUCCESS_RATIO:
+        die(
+            f"成功率 {success_ratio:.1%} ({len(success)}/{checked}) "
+            f"低于阈值 {MIN_SUCCESS_RATIO:.1%} — 拒绝发布, 保留上一版订阅"
+        )
+
+    log(
+        "RESULT",
+        f"成功率: {success_ratio:.1%} ({len(success)}/{checked})"
+        + (f" (阈值 {MIN_SUCCESS_RATIO:.1%})" if MIN_SUCCESS_RATIO > 0 else " (成功率阈值未启用)"),
+    )
 
     data = build_outputs(results, raw_count, sstp_count, source, duration_s=round(elapsed, 1))
     log("RESULT", f"可用节点: {len(success)}")

@@ -37,6 +37,8 @@ jobs:
           CHECK_WORKER: ${{ secrets.XXTTAO }}
           CHECK_CONCURRENCY: "32"
           CHECK_TIMEOUT: "90"
+          # 成功率下限: 低于 20% 时拒绝发布, 保留上一版订阅 (近期实测 55%~61%, 只拦灾难性全灭)
+          MIN_SUCCESS_RATIO: "0.2"
 
       - name: Ensure GitHub Pages is enabled (one-time auto setup)
         run: |
