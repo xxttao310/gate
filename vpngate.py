@@ -491,6 +491,15 @@ def write_outputs(data, edge_hosts):
 # ---------------------------------------------------------------------------
 # main
 # ---------------------------------------------------------------------------
+
+
+def _rel(path):
+    """日志用的相对路径; 跨盘/跨挂载点时退回绝对路径, 绝不让日志抛异常。"""
+    try:
+        return os.path.relpath(path, REPO_DIR)
+    except Exception:
+        return path
+
 def main():
     session = requests.Session()
     rows, source = fetch_vpngate()
@@ -563,9 +572,9 @@ def main():
     edge_hosts = get_combined_edge_hosts()
 
     data_path, html_path, nodes_path = write_outputs(data, edge_hosts)
-    log("WEBSITE", f"生成 {os.path.relpath(data_path, REPO_DIR)}")
-    log("WEBSITE", f"生成 {os.path.relpath(html_path, REPO_DIR)}")
-    log("WEBSITE", f"生成 {os.path.relpath(nodes_path, REPO_DIR)}")
+    log("WEBSITE", f"生成 {_rel(data_path)}")
+    log("WEBSITE", f"生成 {_rel(html_path)}")
+    log("WEBSITE", f"生成 {_rel(nodes_path)}")
     log("USAGE", f"自动轮换: 把 {NODES_URL} 填入 edgetunnel 后台「自定义优选IP」框 (一次配置, 之后自动更新)")
     log("WEBSITE", "完成 (GitHub Pages 部署由 workflow 执行)")
 
