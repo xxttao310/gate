@@ -2,10 +2,6 @@ name: VPN Gate Node Check
 
 on:
   workflow_dispatch:
-  schedule:
-    # 偶数小时的 17 分、47 分各触发一次 (UTC)，名义间隔约 1 小时。
-    # 避开整点 00 分——那是 GitHub 定时任务最拥挤的槽位，实测大量丢跑。
-    - cron: '17,47 */2 * * *'
 
 permissions:
   contents: read
