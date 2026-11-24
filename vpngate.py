@@ -500,7 +500,7 @@ def _rel(path):
         return path
 
 def main():
-    session = requests.Session()
+      session = requests.Session()
     rows, source = fetch_vpngate()
     raw_count = len(rows)
     if raw_count == 0:
