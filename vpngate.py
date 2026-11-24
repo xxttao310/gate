@@ -495,12 +495,12 @@ def write_outputs(data, edge_hosts):
 def _rel(path):
     """日志用的相对路径; 跨盘/跨挂载点时退回绝对路径, 绝不让日志抛异常。"""
     try:
-        return os.path.relpath(path, REPO_DIR)
-  except Exception:
+                return os.path.relpath(path, REPO_DIR)
+    except Exception:
         return path
 
 def main():
-      session = requests.Session()
+    session = requests.Session()
     rows, source = fetch_vpngate()
     raw_count = len(rows)
     if raw_count == 0:
