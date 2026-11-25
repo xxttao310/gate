@@ -70,11 +70,11 @@ jobs:
         uses: actions/deploy-pages@v4
 
       - name: Wait before deploy retry
-        if: steps.deployment.outcome == 'failure'
+        if: failure() && steps.deployment.outcome == 'failure'
         run: sleep 60
 
       - name: Deploy to GitHub Pages (retry)
-        if: steps.deployment.outcome == 'failure'
+        if: failure() && steps.deployment.outcome == 'failure'
         uses: actions/deploy-pages@v4
 
       - name: Show site URL
